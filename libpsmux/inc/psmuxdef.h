@@ -24,5 +24,8 @@ typedef unsigned int    guint;
 
 #define INVALID_TS  (-1)
 
-#define NULL    (0)
+#ifndef NULL
+	#define NULL    (0)
+#endif
+
 #endif
