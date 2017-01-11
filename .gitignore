@@ -2,3 +2,4 @@
 /example/Makefile.nxp
 /example/Makefile
 /*.o
+/*.a
