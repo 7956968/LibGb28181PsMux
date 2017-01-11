@@ -28,10 +28,10 @@ psmux_new ()
 
   mux = new PsMux;
 
-  mux->pts = -1;                /* uninitialized values */
-  mux->pack_hdr_pts = -1;
-  mux->sys_hdr_pts = -1;
-  mux->psm_pts = -1;
+  mux->pts = INVALID_TS;                /* uninitialized values */
+  mux->pack_hdr_pts = INVALID_TS;
+  mux->sys_hdr_pts = INVALID_TS;
+  mux->psm_pts = INVALID_TS;
 
   mux->bit_pts = 0;
 
@@ -142,7 +142,7 @@ psmux_mux_frame(PsMux * mux, PsMuxStream * stream, guint8 * rawBuf,
 
     if (mux->enable_pack_hdr) {
 
-        if (mux->pts != -1 && mux->pts > mux->bit_pts
+        if (mux->pts != INVALID_TS && mux->pts > mux->bit_pts
             && mux->pts - mux->bit_pts > PSMUX_BITRATE_CALC_INTERVAL) {
                 /* XXX: smoothing the rate? */
                 mux->bit_rate = (mux->bit_size * 8 * CLOCKBASE) / (mux->pts - mux->bit_pts);
