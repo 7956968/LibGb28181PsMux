@@ -54,7 +54,7 @@ enum NAL_type
     NAL_SEI_PREFIX,
     NAL_SEI_SUFFIX,
     NAL_other,
-    NAL_TYPE_NUM,
+    NAL_TYPE_NUM
 };
 
 NAL_type getH264NALtype(unsigned char c);

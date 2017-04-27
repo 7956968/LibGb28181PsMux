@@ -47,9 +47,6 @@ struct PsMux {
     guint32 rate_bound;
 };
 
-#define MUX_ERROR   (1)
-#define MEM_ERROR   (2)
-#define MUX_OK      (0)
 
 /* create/free new muxer session */
 PsMux *		psmux_new 			(void);

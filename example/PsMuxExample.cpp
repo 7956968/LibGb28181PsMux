@@ -36,6 +36,12 @@ struct PsMuxContext
             dts += 3600;
         }
     }
+    
+    void testMuxSpsPpsI(guint8* buf, int len)
+    {
+        int MuxOutSize = 0;
+        PsMux.MuxH264SpsPpsIFrame(buf, len, 0, 0, Idx, pMuxBuf, &MuxOutSize, BUF_LEN);
+    }
 
     virtual void OnPsFrameOut(guint8* buf, int len, gint64 pts, gint64 dts) = 0;
 
@@ -69,6 +75,7 @@ struct PsProcessSaveFile : public PsMuxContext
     }
     FILE* fp;
 };
+
 
 //遍历block拆分NALU,直到MaxSlice,不然一直遍历下去
 int process_block(guint8* pBlock, int BlockLen, int MaxSlice,  PsMuxContext* PsDst)
@@ -129,12 +136,21 @@ int main(int argc, char* argv[])
     Gb28181PsMux PsMuxer;
     int Circle = 0;
 
+
+
     PsProcessSaveFile SaveFile("PsMux.mpeg");
+
+    unsigned char pTest[] = {0x00, 0x00, 0x00, 0x01, 0x27, 0x55, 0x66,
+        0x00, 0x00, 0x00, 0x01, 0x28, 0x55, 
+        0x00, 0x00, 0x00, 0x01, 0x25, 0x66};
+
+    //SaveFile.testMuxSpsPpsI(pTest, sizeof(pTest));
 
     FILE* fp = fopen(argv[1], "rb");
     if (fp == NULL)
     {
         printf("can't open file %s\n", argv[1]);
+        return -1;
     }
 
     guint8* fReadbuf = new guint8[BUF_LEN];

@@ -94,7 +94,11 @@ int Gb28181PsMux::MuxH265VpsSpsPpsIFrame(guint8* buf, int len, gint64 Pts, gint6
     context.dts = Dts;
     context.OutBuf = outBuf;
     context.MaxOutSize = maxOutSize;
+    context.pMux = this;
     MuxBlock(buf, len, 4, &context);
+    if (pOutSize){//计算用去了多少字节
+        *pOutSize = context.OutBuf - outBuf;
+    }
     return MUX_OK;
 }
 
@@ -107,7 +111,11 @@ int Gb28181PsMux::MuxH264SpsPpsIFrame(guint8* buf, int len, gint64 Pts, gint64 D
     context.dts = Dts;
     context.OutBuf = outBuf;
     context.MaxOutSize = maxOutSize;
+    context.pMux = this;
     MuxBlock(buf, len, 3, &context);
+    if (pOutSize){//计算用去了多少字节
+        *pOutSize = context.OutBuf - outBuf;
+    }
     return MUX_OK;
 }
 
@@ -126,13 +134,15 @@ int Gb28181PsMux::MuxH264SingleFrame(guint8* buf, int len, gint64 Pts, gint64 Dt
     PsMuxStream * pMuxStream = m_VecStream[Idx];
 
     //default
-    {
-        m_PsMuxContext->enable_pack_hdr = 0;
-        m_PsMuxContext->enable_psm = 0;
-        m_PsMuxContext->enable_sys_hdr = 0;
-    }
+    m_PsMuxContext->enable_pack_hdr = 0;
+    m_PsMuxContext->enable_psm = 0;
+    m_PsMuxContext->enable_sys_hdr = 0;
+    pMuxStream->pi.flags &= ~PSMUX_PACKET_FLAG_PES_DATA_ALIGN;
+    m_PsMuxContext->pts = Pts;
 
-    pMuxStream->pi.flags |= PSMUX_PACKET_FLAG_PES_DATA_ALIGN;
+    if (Pts == Dts){
+        Dts = INVALID_TS;
+    }
 
     if (Type == NAL_SPS){
         m_PsMuxContext->enable_pack_hdr = 1;
@@ -147,6 +157,10 @@ int Gb28181PsMux::MuxH264SingleFrame(guint8* buf, int len, gint64 Pts, gint64 Dt
     }
     else if (Type == NAL_PFRAME){
         m_PsMuxContext->enable_pack_hdr = 1;
+        pMuxStream->pi.flags |= PSMUX_PACKET_FLAG_PES_DATA_ALIGN;
+    }
+    else if (Type == NAL_IDR){
+        pMuxStream->pi.flags |= PSMUX_PACKET_FLAG_PES_DATA_ALIGN;
     }
 
     psmux_mux_frame(m_PsMuxContext, m_VecStream[Idx], buf, len, Pts, Dts, outBuf, pOutSize, maxOutSize);
@@ -221,7 +235,6 @@ int MuxBlock(guint8* pBlock, int BlockLen, int MaxSlice, MuxMultiFrameContext* p
     int LastBlockLen = BlockLen;
 
     guint8* NaluStartPos = NULL;
-    guint8* NaluEndPos   = NULL;
 
     if(pContext == NULL) return MUX_ERROR;
 
@@ -231,25 +244,27 @@ int MuxBlock(guint8* pBlock, int BlockLen, int MaxSlice, MuxMultiFrameContext* p
     while (LastBlockLen > 4)
     {
         if ((pCurPos[0] == 0) && (pCurPos[1] == 0) && (pCurPos[2] == 0) && (pCurPos[3] == 1)){
-            
-            if (iSliceNum + 1 >= MaxSlice){//已经到达最大NALU个数,下面的不用找了把剩下的加上就是
-                pContext->MuxOneOfMultiFrame(pCurPos, LastBlockLen);
-                break;
-            }
-            
+
+            iSliceNum++;
+     
             if (NaluStartPos == NULL){
                 NaluStartPos = pCurPos;
             }
             else{
                 pContext->MuxOneOfMultiFrame(NaluStartPos, pCurPos-NaluStartPos);
-                iSliceNum++;
-                NaluStartPos = NULL;
+                NaluStartPos = pCurPos;
+            }
+
+            if (iSliceNum >= MaxSlice){//已经到达最大NALU个数,下面的不用找了把剩下的加上就是
+                pContext->MuxOneOfMultiFrame(pCurPos, LastBlockLen);
+                break;
             }
         }
         
         pCurPos++;
         LastBlockLen--;
     }
+
     return MUX_OK;
 }
 

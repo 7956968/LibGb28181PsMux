@@ -133,9 +133,9 @@ psmux_stream_new (PsMux * mux, PsMuxStreamType stream_type)
 
   stream->buffer_release = NULL;
 
-  stream->pts = -1;
-  stream->dts = -1;
-  stream->last_pts = -1;
+  stream->pts = INVALID_TS;
+  stream->dts = INVALID_TS;
+  stream->last_pts =INVALID_TS;
 
   /* These fields are set by gstreamer */
   stream->audio_sampling = 0;

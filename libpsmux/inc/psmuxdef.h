@@ -21,8 +21,14 @@ typedef unsigned int    guint;
 #define g_critical printf
 #define g_warning printf
 
+#define MUX_ERROR   (1)
+#define MEM_ERROR   (2)
+#define MUX_OK      (0)
 
 #define INVALID_TS  (-1)
 
-#define NULL    (0)
+#ifndef NULL
+	#define NULL    (0)
+#endif
+
 #endif
