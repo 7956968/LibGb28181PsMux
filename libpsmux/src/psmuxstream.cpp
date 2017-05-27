@@ -207,16 +207,25 @@ psmux_stream_mux_frame (PsMuxStream * stream,
 
       stream->cur_pes_payload_size =
           min(len, PSMUX_PES_MAX_PAYLOAD - pes_hdr_length);
-
-      psmux_stream_write_pes_header (stream, pOutBuf);
       
+      if(maxOutSize < pes_hdr_length){
+          return MEM_ERROR;
+      }
+      
+      psmux_stream_write_pes_header (stream, pOutBuf);
+      maxOutSize -= pes_hdr_length;
       pOutBuf += pes_hdr_length;
+
+      if(maxOutSize < stream->cur_pes_payload_size){
+          return MEM_ERROR;
+      }
 
       memcpy (pOutBuf, cur, stream->cur_pes_payload_size);
 
       cur += stream->cur_pes_payload_size;
       len -= stream->cur_pes_payload_size;     /* number of bytes of payload to write */
       pOutBuf += stream->cur_pes_payload_size;
+      maxOutSize -= pes_hdr_length;
 
       *pOutSize += (pes_hdr_length + stream->cur_pes_payload_size);
   }

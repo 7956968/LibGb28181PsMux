@@ -9,6 +9,7 @@ typedef unsigned int StreamIdx;
 struct PsMux;
 struct PsMuxStream;
 
+#define MAX_SPSPPSI_SIZE	(1024*1024)
 /*
 //输入单个H264/5帧,必须以00 00 00 01开头,SPS PPS 和 I帧不能连在一起
 */
@@ -40,6 +41,10 @@ public:
 private:
     PsMux *m_PsMuxContext;
     std::vector<PsMuxStream *> m_VecStream;
+
+	
+    guint8* m_SpsPpsIBuf;
+	int m_SpsPpsIBufSize;
 };
 
 //帧类型定义

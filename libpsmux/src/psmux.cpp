@@ -243,7 +243,7 @@ int
 psmux_write_system_header (PsMux * mux, guint8 * outBuf, int* pOutSize, int maxOutSize)
 {
   bits_buffer_t bw;
-  guint len = 12 + mux->nb_streams * 3;
+  int len = 12 + mux->nb_streams * 3;
 
   /* system_header_start_code */
   bits_initwrite (&bw, len, mux->packet_buf);

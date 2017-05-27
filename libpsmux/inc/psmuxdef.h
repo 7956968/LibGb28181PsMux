@@ -27,6 +27,8 @@ typedef unsigned int    guint;
 
 #define INVALID_TS  (-1)
 
+#define INVALID_STREAM_INDEX  (-1)
+
 #ifndef NULL
 	#define NULL    (0)
 #endif

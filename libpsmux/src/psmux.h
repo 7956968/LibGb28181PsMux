@@ -47,6 +47,10 @@ struct PsMux {
     guint32 rate_bound;
 };
 
+#define MUX_ERROR   (1)
+#define MEM_ERROR   (2)
+#define MUX_WAIT    (3)         //当前帧被缓存,稍后给出数据
+#define MUX_OK      (0)
 
 /* create/free new muxer session */
 PsMux *		psmux_new 			(void);

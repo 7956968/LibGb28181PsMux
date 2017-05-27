@@ -1,7 +1,9 @@
 #include "../inc/Gb28181PsMux.h"
 
-#include "psmux.h"
+#include<string.h>
+#include<stdio.h>
 
+#include "psmux.h"
 
 
 
@@ -30,6 +32,8 @@ int MuxBlock(unsigned char* buf, int len, int MaxSlice, MuxMultiFrameContext* pC
 
 Gb28181PsMux::Gb28181PsMux():m_PsMuxContext(NULL)
 {
+	m_SpsPpsIBuf = new guint8[MAX_SPSPPSI_SIZE];
+	m_SpsPpsIBufSize = 0;
 }
 
 Gb28181PsMux::~Gb28181PsMux()
@@ -37,6 +41,8 @@ Gb28181PsMux::~Gb28181PsMux()
     if (m_PsMuxContext){
         psmux_free(m_PsMuxContext);
     }
+
+	delete []m_SpsPpsIBuf;
 }
 
 struct MuxH265VpsSpsPpsIFrameContext : public MuxMultiFrameContext
@@ -44,11 +50,14 @@ struct MuxH265VpsSpsPpsIFrameContext : public MuxMultiFrameContext
 public:
     virtual int MuxOneOfMultiFrame(guint8* buf, int len)
     {
-        int ret = 0;
-        ret = pMux->MuxH265SingleFrame(buf, len, pts, dts, Idx, OutBuf, &OutSize, MaxOutSize);
-        if (ret != MUX_OK)
-        {
-            return MUX_ERROR;
+        int r = pMux->MuxH265SingleFrame(buf, len, pts, dts, Idx, OutBuf, &OutSize, MaxOutSize);
+        
+        if (r == MUX_WAIT){
+            return MUX_OK;
+        }
+
+        if (r == MUX_ERROR || r == MEM_ERROR){
+            return r;
         }
 
         OutBuf += OutSize;
@@ -62,13 +71,16 @@ struct MuxH264SPSPPSIFrameContext : public MuxMultiFrameContext
 public:
     virtual int MuxOneOfMultiFrame(guint8* buf, int len)
     {
-        int ret = 0;
-        ret = pMux->MuxH264SingleFrame(buf, len, pts, dts, Idx, OutBuf, &OutSize, MaxOutSize);
-        if (ret != MUX_OK)
-        {
-            return MUX_ERROR;
+        int r = pMux->MuxH264SingleFrame(buf, len, pts, dts, Idx, OutBuf, &OutSize, MaxOutSize);
+
+        if (r == MUX_WAIT){
+            return MUX_OK;
         }
         
+        if (r == MUX_ERROR || r == MEM_ERROR){
+            return r;
+        }
+
         OutBuf += OutSize;
         MaxOutSize -= OutSize;
         return MUX_OK;
@@ -122,6 +134,8 @@ int Gb28181PsMux::MuxH264SpsPpsIFrame(guint8* buf, int len, gint64 Pts, gint64 D
 int Gb28181PsMux::MuxH264SingleFrame(guint8* buf, int len, gint64 Pts, gint64 Dts, StreamIdx Idx,
                                      guint8 * outBuf, int* pOutSize, int maxOutSize)
 {
+	*pOutSize = 0;
+
     if (Idx >= m_VecStream.size()){
         return MUX_ERROR;
     }
@@ -131,6 +145,11 @@ int Gb28181PsMux::MuxH264SingleFrame(guint8* buf, int len, gint64 Pts, gint64 Dt
     if (Type == NAL_other){
         return MUX_ERROR;
     }
+
+    if (Type == NAL_SEI){
+        return MUX_OK;
+    }
+
     PsMuxStream * pMuxStream = m_VecStream[Idx];
 
     //default
@@ -144,33 +163,60 @@ int Gb28181PsMux::MuxH264SingleFrame(guint8* buf, int len, gint64 Pts, gint64 Dt
         Dts = INVALID_TS;
     }
 
-    if (Type == NAL_SPS){
-        m_PsMuxContext->enable_pack_hdr = 1;
-        m_PsMuxContext->enable_psm = 1;
-        m_PsMuxContext->enable_sys_hdr = 1;
-        Pts = INVALID_TS;
-        Dts = INVALID_TS;
-    }
-    else if (Type == NAL_PPS){
-        Pts = INVALID_TS;
-        Dts = INVALID_TS;
-    }
-    else if (Type == NAL_PFRAME){
+    if (Type == NAL_PFRAME){
         m_PsMuxContext->enable_pack_hdr = 1;
         pMuxStream->pi.flags |= PSMUX_PACKET_FLAG_PES_DATA_ALIGN;
+		int r = psmux_mux_frame(m_PsMuxContext, m_VecStream[Idx], buf, len, Pts, Dts, outBuf, pOutSize, maxOutSize);
+        if (r == MUX_ERROR || r == MEM_ERROR){
+            return r;
+        }
     }
-    else if (Type == NAL_IDR){
-        pMuxStream->pi.flags |= PSMUX_PACKET_FLAG_PES_DATA_ALIGN;
-    }
+    else {
+		//如果是单个SPS PPS 则等到I帧一起发送,原则就是同一个时间戳作为一个RTP包
+		if (Type == NAL_SPS){
+	        m_PsMuxContext->enable_pack_hdr = 1;
+	        m_PsMuxContext->enable_psm = 1;
+	        m_PsMuxContext->enable_sys_hdr = 1;
+	        Pts = INVALID_TS;
+	        Dts = INVALID_TS;
+	    }
+	    else if (Type == NAL_PPS){
+	        Pts = INVALID_TS;
+	        Dts = INVALID_TS;
+	    }
+		else if (Type == NAL_IDR){
+        	pMuxStream->pi.flags |= PSMUX_PACKET_FLAG_PES_DATA_ALIGN;
+    	}
 
-    psmux_mux_frame(m_PsMuxContext, m_VecStream[Idx], buf, len, Pts, Dts, outBuf, pOutSize, maxOutSize);
+		int outSize = 0;
+		psmux_mux_frame(m_PsMuxContext, m_VecStream[Idx], buf, len, Pts, Dts, 
+			m_SpsPpsIBuf+m_SpsPpsIBufSize, &outSize, MAX_SPSPPSI_SIZE-m_SpsPpsIBufSize);
+		m_SpsPpsIBufSize += outSize;
 
+		if (Type == NAL_IDR){
+			if(m_SpsPpsIBufSize > maxOutSize){
+				return MEM_ERROR;
+			}
+
+			memcpy(outBuf, m_SpsPpsIBuf, m_SpsPpsIBufSize);
+			*pOutSize = m_SpsPpsIBufSize;
+			m_SpsPpsIBufSize = 0;
+		}
+		else{
+			return MUX_WAIT;
+		}
+		
+		return MUX_OK;
+	}
+	
     return MUX_OK;
 }
 
 int Gb28181PsMux::MuxH265SingleFrame(guint8* buf, int len, gint64 Pts, gint64 Dts, StreamIdx Idx,
                        guint8 * outBuf, int* pOutSize, int maxOutSize)
 {
+    *pOutSize = 0;
+
     if (Idx >= m_VecStream.size()){
         return MUX_ERROR;
     }
@@ -180,6 +226,10 @@ int Gb28181PsMux::MuxH265SingleFrame(guint8* buf, int len, gint64 Pts, gint64 Dt
     NAL_type Type = getH265NALtype(buf[4]);
     if (Type == NAL_other){
         return MUX_ERROR;
+    }
+    
+    if (Type == NAL_SEI){
+        return MUX_OK;
     }
 
     //default
@@ -191,19 +241,41 @@ int Gb28181PsMux::MuxH265SingleFrame(guint8* buf, int len, gint64 Pts, gint64 Dt
 
     pMuxStream->pi.flags |= PSMUX_PACKET_FLAG_PES_DATA_ALIGN;
 
-    if (Type == NAL_VPS){
+    if (Type == NAL_PFRAME){
         m_PsMuxContext->enable_pack_hdr = 1;
-        m_PsMuxContext->enable_psm = 1;
-        m_PsMuxContext->enable_sys_hdr = 1;
+        int r = psmux_mux_frame(m_PsMuxContext, m_VecStream[Idx], buf, len, Pts, Dts, outBuf, pOutSize, maxOutSize);
+        if (r == MUX_ERROR || r == MEM_ERROR){
+            return r;
+        }
     }
-    else if (Type == NAL_PPS){
-        m_PsMuxContext->enable_pack_hdr = 1;
-    }
-    else if (Type == NAL_PFRAME){
-        m_PsMuxContext->enable_pack_hdr = 1;
-    }
+    else{
+        if (Type == NAL_VPS){
+            m_PsMuxContext->enable_pack_hdr = 1;
+            m_PsMuxContext->enable_psm = 1;
+            m_PsMuxContext->enable_sys_hdr = 1;
+        }
+        else if (Type == NAL_PPS){
+            m_PsMuxContext->enable_pack_hdr = 1;
+        }
 
-    psmux_mux_frame(m_PsMuxContext, m_VecStream[Idx], buf, len, Pts, Dts, outBuf, pOutSize, maxOutSize);
+        int outSize = 0;
+        psmux_mux_frame(m_PsMuxContext, m_VecStream[Idx], buf, len, Pts, Dts, 
+            m_SpsPpsIBuf+m_SpsPpsIBufSize, &outSize, MAX_SPSPPSI_SIZE-m_SpsPpsIBufSize);
+        m_SpsPpsIBufSize += outSize;
+
+        if (Type == NAL_IDR){
+            if(m_SpsPpsIBufSize > maxOutSize){
+                return MEM_ERROR;
+            }
+
+            memcpy(outBuf, m_SpsPpsIBuf, m_SpsPpsIBufSize);
+            *pOutSize = m_SpsPpsIBufSize;
+            m_SpsPpsIBufSize = 0;
+        }
+        else{
+            return MUX_WAIT;
+        }
+    }
 
     return MUX_OK;
 }
@@ -223,7 +295,6 @@ int Gb28181PsMux::MuxAudioFrame(guint8* buf, int len, gint64 Pts, gint64 Dts, St
 
     pMuxStream->pi.flags |= PSMUX_PACKET_FLAG_PES_DATA_ALIGN;
 
-    int MuxSize = 0;
     psmux_mux_frame(m_PsMuxContext, m_VecStream[Idx], buf, len, Pts, Dts, outBuf, pOutSize, maxOutSize);
     return MUX_OK;
 }
