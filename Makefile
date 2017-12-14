@@ -1,172 +1,120 @@
-#=======================================================================================
-#
-#     Filename: Makefile
-#  Description: 
-#
-#        Usage: make              (generate target, equal to make debug )
-#               make release      (generate release target              )
-#               make debug        (generate debug target                )
-#               make clean        (remove objects, target, prerequisits )
-#
-#      Version: 1.0
-#      Created: 
-#     Revision: ---
-#
-#       Author: 
-#      Company: 
-#        Email: 
-#
-#        Notes: C   extension   :  c 
-#               C++ extensions  :  cc cpp C 
-#               C and C++ sources can be mixed.
-#               Prerequisites are generated automatically; makedepend is not
-#               needed (see documentation for GNU make Version 3.80, July 2002,
-#               section 4.13). The utility sed is used.
-#               
-#============================================== makefile template version 1.6 ==========
+TOOLCHAIN   := arm-linux-
 
-# ----------- custom setting ----------------------------------------------------------
-PROJECT_TOPDIR  = ../../..
-include $(PROJECT_TOPDIR)/config.mk
+# target program
+TARGET_PROG := 
 
-# ------------  name of the target  ------------------------------------------------
-TARGET          = libpsmux.a
+# target library (static)
+TARGET_LIB_STATIC  := lib/libpsmux.a
 
-# ------------  list of all source files  ----------------------------------------------
-SOURCES         = psmux.c psmuxstream.c psutil.c
-# ------------  compiler  --------------------------------------------------------------
-CC              = $(TOOLCHAIN)gcc
-CXX             = $(TOOLCHAIN)g++
-AR              = $(TOOLCHAIN)ar
+# target library (dynamic)
+TARGET_LIB_DYNAMIC := 
 
-# ------------  compiler flags  --------------------------------------------------------
+# for intermediate files
+TEMP_DIR    := obj
+
+# list of all source files
+SOURCES     := libpsmux/src/psmux.cpp libpsmux/src/psmuxstream.cpp libpsmux/src/Gb28181PsMux.cpp
+
+# include and library 
+INC_DIRS    := 
+
+LIB_DIRS    := 
+
+LD_LIBS     := 
+ 
+# complie & link variable
 ifeq ($(MAKECMDGOALS), debug)   
-    CFLAGS      = -Wall -O0 -g
+    CFLAGS := -Wall -O0 -g
 else
-    CFLAGS      = -O3
+    CFLAGS := -O2
 endif   
-ifeq ($(NXP_CHIPSET), ASC8850)    
-	CFLAGS += -DASC8850_M2
-else     
-	CFLAGS += -DASC8850_M3
+ifneq ($(strip $(TARGET_LIB_DYNAMIC)),)
+    CFLAGS += -fPIC -shared
 endif
-CFLAGS += -DSVN=\"$(shell svnversion -n ../..)\" -DPRODUCT_MODEL=\"MK_HD_CAM\"
-CFLAGS += -D__ASM_ARCH_PLATFORM_MOZART_H__
-CFLAGS += -DNXP_CHIPSET_ASC8850
-CFLAGS += -DNXP_SDK_VERSION=$(NXP_SDK_VERSION)
+CFLAGS     += -DNXP_CHIPSET_ASC8850
+CFLAGS     += $(INC_DIRS)
+CXXFLAGS    = $(CFLAGS)
+LDFLAGS    := 
 
-# ------------  linker-Flags  ----------------------------------------------------------
-LFLAGS          = -g
+# shell command
+CC    := $(TOOLCHAIN)gcc
+CXX   := $(TOOLCHAIN)g++
+AR    := $(TOOLCHAIN)ar
+RM    := rm -rf
+MKDIR := mkdir -p
+SED   := sed
+MV    := mv
 
-# ------------  additional system include directories  ---------------------------------
-GLOBAL_INC_DIR  = $(SDK_INCLUDE)
+# init sources & objects & depends
+source_short_name := $(notdir $(SOURCES))
+sources_c   := $(filter %.c, $(SOURCES))
+sources_cpp := $(filter %.cpp, $(SOURCES))
+source_base_name := $(basename $(source_short_name))
+objs        := $(addprefix $(TEMP_DIR)/, $(addsuffix .o, $(source_base_name)))
+deps        := $(addprefix $(TEMP_DIR)/, $(addsuffix .d, $(source_base_name)))
 
-# ------------  private include directories  -------------------------------------------
-LOCAL_INC_DIR   = glib
+# create intermediate file directory
+$(shell $(MKDIR) $(TEMP_DIR))
 
-# ------------  system libraries  (e.g. -lm )  -----------------------------------------
-SYS_LIBS        = -lm -ldl -lrt
+# add vpath
+vpath %.c $(sort $(dir $(sources_c)))
+vpath %.cpp $(sort $(dir $(sources_cpp)))
 
-# ------------  additional system library directories  ---------------------------------
-GLOBAL_LIB_DIR  = 
-
-# ------------  additional system libraries  -------------------------------------------
-GLOBAL_LIBS     = 
-
-# ------------  private library directories  -------------------------------------------
-LOCAL_LIB_DIR   = glib
-
-# ------------  private libraries  (e.g. libxyz.a )  -----------------------------------
-LOCAL_LIBS      = 
-
-# ------------  archive generation -----------------------------------------------------
-TARBALL_EXCLUDE = *.{o,gz,zip}
-ZIP_EXCLUDE     = *.{o,gz,zip}
-
-# ------------  run target out of this Makefile  (yes/no)  -------------------------
-# ------------  cmd line parameters for this target  -------------------------------
-EXE_START       = no
-EXE_CMDLINE     = 
-
-#=======================================================================================
-# The following statements usually need not to be changed
-#=======================================================================================
-
-C_SOURCES       = $(filter     %.c, $(SOURCES))
-CPP_SOURCES     = $(filter-out %.c, $(SOURCES))
-ALL_INC_DIR     = $(addprefix -I, $(LOCAL_INC_DIR) $(GLOBAL_INC_DIR))
-ALL_LIB_DIR     = $(addprefix -L, $(LOCAL_LIB_DIR) $(GLOBAL_LIB_DIR))
-ALL_CFLAGS      = $(CFLAGS) $(ALL_INC_DIR)
-ALL_LFLAGS      = $(LFLAGS) $(ALL_LIB_DIR)
-BASENAMES       = $(basename $(SOURCES))
-
-# ------------  generate the names of the object files  --------------------------------
-OBJECTS         = $(addsuffix .o,$(BASENAMES))
-
-# ------------  generate the names of the hidden prerequisite files  -------------------
-PREREQUISITES   = $(addprefix .,$(addsuffix .d,$(BASENAMES)))
-
-# ------------  make the target  ---------------------------------------------------
-$(TARGET):  	$(OBJECTS)
-				@$(AR) -r $@ $^
-
-release:        $(TARGET)
-
-debug:          $(TARGET)
-
-# ------------  include the automatically generated prerequisites  ---------------------
-# ------------  if target is not clean, tarball or zip             ---------------------
-ifneq ($(MAKECMDGOALS),clean)
-include         $(PREREQUISITES)
-endif
-
-# ------------  make the objects  ------------------------------------------------------
-%.o:			%.c
-				$(CC)  -c $(ALL_CFLAGS) $< 
-
-%.o:			%.cc
-				$(CXX) -c $(ALL_CFLAGS) $< 
-
-%.o:			%.cpp
-				$(CXX) -c $(ALL_CFLAGS) $< 
-
-%.o:			%.C
-				$(CXX) -c $(ALL_CFLAGS) $< 
-
-# ------------  make the prerequisites  ------------------------------------------------
-#
-.%.d:           %.c
-				@$(make-prerequisite-c)
-
-.%.d:			%.cc
-				@$(make-prerequisite-cplusplus)
-
-.%.d:			%.cpp
-				@$(make-prerequisite-cplusplus)
-
-.%.d:			%.C
-				@$(make-prerequisite-cplusplus)
-
-#  canned command sequences
-#  echoing of the sed command is suppressed by the leading @
-
-define	make-prerequisite-c
-				$(CC)   -M $(ALL_CFLAGS) $< > $@.$$$$;            \
-				sed 's/\($*\)\.o[ :]*/\1.o $@ : /g' < $@.$$$$ > $@; \
-				rm -f $@.$$$$; 
+# make-depend(depend-file,source-file,object-file,cc)
+define make-depend
+  $(RM) $1;                                     \
+  $4 $(CFLAGS) -MM $2 |                         \
+  $(SED) 's,\($(notdir $3)\): ,$3: ,' > $1;
 endef
 
-define	make-prerequisite-cplusplus
-				$(CXX)  -M $(ALL_CFLAGS) $< > $@.$$$$;            \
-				sed 's/\($*\)\.o[ :]*/\1.o $@ : /g' < $@.$$$$ > $@; \
-				rm -f $@.$$$$; 
-endef
+.PHONY: release debug clean show
 
-# ------------  remove generated files  ------------------------------------------------
-# ------------  remove hidden backup files  --------------------------------------------
-clean:
-				rm  --force  $(TARGET) $(OBJECTS) $(PREREQUISITES) *~
+all   := $(TARGET_PROG) $(TARGET_LIB_STATIC) $(TARGET_LIB_DYNAMIC)
 
-# ======================================================================================
-# vim: set tabstop=2: set shiftwidth=2: 
-# DO NOT DELETE 
+release: $(all)
+
+debug: $(all)
+
+$(TARGET_PROG): $(objs)
+ifeq "$(strip $(sources_cpp))" ""
+	$(CC) $(LDFLAGS) $^ $(LIB_DIRS) $(LD_LIBS) -o $@
+else
+	$(CXX) $(LDFLAGS) $^ $(LIB_DIRS) $(LD_LIBS) -o $@
+endif
+
+$(TARGET_LIB_STATIC): $(objs)
+	$(AR) -r $@ $^
+
+$(TARGET_LIB_DYNAMIC): $(objs)
+ifeq "$(strip $(sources_cpp))" ""
+	$(CC) $(LDFLAGS) -fPIC -shared $^ $(LIB_DIRS) $(LD_LIBS) -o $@
+else
+	$(CXX) $(LDFLAGS)-fPIC -shared $^ $(LIB_DIRS) $(LD_LIBS) -o $@
+endif
+
+# generated depend files
+# actually generated after object generatedd, beacasue it only used when next make)
+ifneq "$(MAKECMDGOALS)" "clean"
+include $(deps)
+endif
+
+# rules to generated objects file
+$(TEMP_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+$(TEMP_DIR)/%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -o $@ -c $<
+
+# rules to generated depends file
+$(TEMP_DIR)/%.d: %.c
+	@$(call make-depend,$@,$<,$(patsubst %.d,%.o,$@),$(CC))
+
+$(TEMP_DIR)/%.d: %.cpp
+	@$(call make-depend,$@,$<,$(patsubst %.d,%.o,$@),$(CXX))
+
+clean: 
+	$(RM) $(TEMP_DIR)
+	$(RM) $(TARGET_PROG) $(TARGET_LIB_STATIC) $(TARGET_LIB_DYNAMIC)
+
+show:
+	@echo $(objs)
