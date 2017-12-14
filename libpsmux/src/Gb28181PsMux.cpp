@@ -289,13 +289,13 @@ int Gb28181PsMux::MuxAudioFrame(guint8* buf, int len, gint64 Pts, gint64 Dts, St
 
     PsMuxStream * pMuxStream = m_VecStream[Idx];
 
-    m_PsMuxContext->enable_pack_hdr = 1;
-    m_PsMuxContext->enable_psm = 1;
+    m_PsMuxContext->enable_pack_hdr = 0;
+    m_PsMuxContext->enable_psm = 0;
     m_PsMuxContext->enable_sys_hdr = 0;
 
     pMuxStream->pi.flags |= PSMUX_PACKET_FLAG_PES_DATA_ALIGN;
 
-    psmux_mux_frame(m_PsMuxContext, m_VecStream[Idx], buf, len, Pts, Dts, outBuf, pOutSize, maxOutSize);
+    psmux_mux_frame(m_PsMuxContext, m_VecStream[Idx], buf, len, Pts, INVALID_TS, outBuf, pOutSize, maxOutSize);
     return MUX_OK;
 }
 
