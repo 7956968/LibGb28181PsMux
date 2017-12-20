@@ -140,8 +140,8 @@ int Gb28181PsMux::MuxH264SingleFrame(guint8* buf, int len, gint64 Pts, gint64 Dt
         return MUX_ERROR;
     }
 
-    guint8 c = getH264Or265NalTypeChar(buf);
-    if (c == 0){
+    unsigned char c = 0;
+    if (!isH264Or265Frame(buf, &c)){
         return MUX_ERROR;
     }
 
@@ -228,8 +228,8 @@ int Gb28181PsMux::MuxH265SingleFrame(guint8* buf, int len, gint64 Pts, gint64 Dt
 
     PsMuxStream * pMuxStream = m_VecStream[Idx];
 
-    guint8 c = getH264Or265NalTypeChar(buf);
-    if (c == 0){
+    unsigned char c = 0;
+    if (!isH264Or265Frame(buf, &c)){
         return MUX_ERROR;
     }
 
@@ -324,8 +324,7 @@ int MuxBlock(guint8* pBlock, int BlockLen, int MaxSlice, MuxMultiFrameContext* p
 
     while (LastBlockLen > 4)
     {
-        if (((pCurPos[0] == 0) && (pCurPos[1] == 0) && (pCurPos[2] == 0) && (pCurPos[3] == 1))
-            || ((pCurPos[0] == 0) && (pCurPos[1] == 0) && (pCurPos[2] == 1))){
+        if(isH264Or265Frame(pCurPos, NULL)){
 
             iSliceNum++;
      
@@ -350,20 +349,29 @@ int MuxBlock(guint8* pBlock, int BlockLen, int MaxSlice, MuxMultiFrameContext* p
     return MUX_OK;
 }
 
-//0表示错误
-unsigned char getH264Or265NalTypeChar(guint8* buf)
+//判断是否是264或者265帧,如果是顺便把NalTypeChar设置一下
+bool isH264Or265Frame(guint8* buf, unsigned char* NalTypeChar)
 {
+    bool bOk = false;
     unsigned char c = 0;
 
     if (buf[0] == 0 && buf[1] == 0 && buf[2] == 0 && buf[3] == 1){
-        c = buf[4];
-    }
-    
-    if (buf[0] == 0 && buf[1] == 0 && buf[2] == 1 ){
-        c = buf[3];
+        if (NalTypeChar){
+            *NalTypeChar = buf[4];
+        }
+        bOk = true;
     }
 
-    return c;
+    if (buf[0] == 0 && buf[1] == 0 && buf[2] == 1 ){
+
+        if (NalTypeChar){
+            *NalTypeChar = buf[3];
+        }
+
+        bOk = true;
+    }
+
+    return bOk;
 }
 
 NAL_type getH264NALtype(guint8 c)

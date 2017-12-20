@@ -35,12 +35,12 @@ struct PsMuxContext
             printf("mux error!\n");
         }
 
-        unsigned char c = getH264Or265NalTypeChar(buf);
-        if (c == 0){
-            printf("mux error!\n");
+        unsigned char c = 0;
+        if (!isH264Or265Frame(buf, &c)){
             return;
         }
-        NAL_type Type = getH264NALtype(buf[4]);
+
+        NAL_type Type = getH264NALtype(c);
 
         if ((Type == NAL_IDR) || (Type == NAL_PFRAME)){
             pts += 3600;
@@ -113,9 +113,7 @@ int process_block(guint8* pBlock, int BlockLen, int MaxSlice,  PsMuxContext* PsD
 
     while (LastBlockLen > 4)
     {
-        if (((pCurPos[0] == 0) && (pCurPos[1] == 0) && (pCurPos[2] == 0) && (pCurPos[3] == 1))
-            || ((pCurPos[0] == 0) && (pCurPos[1] == 0) && (pCurPos[2] == 1))){
-
+        if(isH264Or265Frame(pCurPos,NULL)){
             if (iSliceNum + 1 >= MaxSlice){//已经到达最大NALU个数,下面的不用找了把剩下的加上就是
                 PsDst->Process(pCurPos, LastBlockLen);
                 break;

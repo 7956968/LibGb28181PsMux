@@ -63,8 +63,8 @@ enum NAL_type
     NAL_TYPE_NUM
 };
 
-//查找buf中表明帧类型的char, 0表示没找到
-unsigned char getH264Or265NalTypeChar(guint8* buf);
+//判断是否是264或者265帧,如果是顺便把NalTypeChar设置一下
+bool isH264Or265Frame(guint8* buf, unsigned char* NalTypeChar);
 NAL_type getH264NALtype(guint8 c);
 NAL_type getH265NALtype(guint8 c);
 
