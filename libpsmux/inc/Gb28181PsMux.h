@@ -26,10 +26,11 @@ public:
     int MuxH265VpsSpsPpsIFrame(guint8* pBlock, int BlockLen, gint64 Pts, gint64 Dts, StreamIdx Idx,
         guint8 * outBuf, int* pOutSize, int maxOutSize);
 
+    //输入SPS+PPS+I帧,必须以00 00 00 01或者00 00 01开头
     int MuxH264SpsPpsIFrame(guint8* pBlock, int BlockLen, gint64 Pts, gint64 Dts, StreamIdx Idx,
         guint8 * outBuf, int* pOutSize, int maxOutSize);
 
-    //输入单个H264/5帧,必须以00 00 00 01开头,SPS PPS 和 I帧不能连在一起
+    //输入单个H264/5帧,必须以00 00 00 01或者00 00 01开头,SPS PPS 和 I帧不能连在一起
     int MuxH264SingleFrame(guint8* pFrame, int FrameLen, gint64 Pts, gint64 Dts, StreamIdx Idx,
         guint8 * outBuf, int* pOutSize, int maxOutSize);
 
