@@ -324,7 +324,8 @@ int MuxBlock(guint8* pBlock, int BlockLen, int MaxSlice, MuxMultiFrameContext* p
 
     while (LastBlockLen > 4)
     {
-        if ((pCurPos[0] == 0) && (pCurPos[1] == 0) && (pCurPos[2] == 0) && (pCurPos[3] == 1)){
+        if (((pCurPos[0] == 0) && (pCurPos[1] == 0) && (pCurPos[2] == 0) && (pCurPos[3] == 1))
+            || ((pCurPos[0] == 0) && (pCurPos[1] == 0) && (pCurPos[2] == 1))){
 
             iSliceNum++;
      
