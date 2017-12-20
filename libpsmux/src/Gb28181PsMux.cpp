@@ -139,8 +139,13 @@ int Gb28181PsMux::MuxH264SingleFrame(guint8* buf, int len, gint64 Pts, gint64 Dt
     if (Idx >= m_VecStream.size()){
         return MUX_ERROR;
     }
-    
-    NAL_type Type = getH264NALtype(buf[4]);
+
+    guint8 c = getH264Or265NalTypeChar(buf);
+    if (c == 0){
+        return MUX_ERROR;
+    }
+
+    NAL_type Type = getH264NALtype(c);
     
     if (Type == NAL_other){
         return MUX_ERROR;
@@ -222,6 +227,11 @@ int Gb28181PsMux::MuxH265SingleFrame(guint8* buf, int len, gint64 Pts, gint64 Dt
     }
 
     PsMuxStream * pMuxStream = m_VecStream[Idx];
+
+    guint8 c = getH264Or265NalTypeChar(buf);
+    if (c == 0){
+        return MUX_ERROR;
+    }
 
     NAL_type Type = getH265NALtype(buf[4]);
     if (Type == NAL_other){
@@ -339,7 +349,23 @@ int MuxBlock(guint8* pBlock, int BlockLen, int MaxSlice, MuxMultiFrameContext* p
     return MUX_OK;
 }
 
-NAL_type getH264NALtype(unsigned char c)
+//0±íÊ¾´íÎó
+unsigned char getH264Or265NalTypeChar(guint8* buf)
+{
+    unsigned char c = 0;
+
+    if (buf[0] == 0 && buf[1] == 0 && buf[2] == 0 && buf[3] == 1){
+        c = buf[4];
+    }
+    
+    if (buf[0] == 0 && buf[1] == 0 && buf[2] == 1 ){
+        c = buf[3];
+    }
+
+    return c;
+}
+
+NAL_type getH264NALtype(guint8 c)
 {
     switch(c & 0x1f){
         case 6:
@@ -364,7 +390,7 @@ NAL_type getH264NALtype(unsigned char c)
     return NAL_other;
 }
 
-NAL_type getH265NALtype(unsigned char c)
+NAL_type getH265NALtype(guint8 c)
 {
     int type = (c & 0x7E)>>1;
 
