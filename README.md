@@ -12,23 +12,23 @@ PS打包在实际项目中很难直接调试,而SIP很容易抓包调试,实际�
 
 
 
-示例代码：
+示例代码：<br>
+---
+Gb28181PsMux PsMuxer;<br>
+添加两个流<br>
+StreamIdx h264Idx = PsMuxer.AddStream(PSMUX_ST_VIDEO_H264);<br>
+StreamIdx g711Idx = PsMuxer.AddStream(PSMUX_ST_PS_AUDIO_G711A);<br>
 
-Gb28181PsMux PsMuxer;
-添加两个流
-StreamIdx h264Idx = PsMuxer.AddStream(PSMUX_ST_VIDEO_H264);
-StreamIdx g711Idx = PsMuxer.AddStream(PSMUX_ST_PS_AUDIO_G711A);
+const int psFrameMax = 1024\*1024;<br>
+char* psFrameOutBuf = new char[psFrameMax];<br>
+int psFrameSize = 0;<br>
 
-const int psFrameMax = 1024*1024;
-char* psFrameOutBuf = new char[psFrameMax];
-int psFrameSize = 0;
-
-封装音频,psFrameSize为实际ps包的大小,
-int r = PsMuxer.MuxAudioFrame(g711buf, g711len, pts, dts, g711Idx, psFrameOutBuf, &psFrameSize, psFrameMax);
-if(r == MUX_OK && psFrameSize > 0){
-    ...
-}
-PsMuxer.MuxH264SingleFrame(h263buf, h264len, pts, dts, g711Idx, psFrameOutBuf, &psFrameSize, psFrameMax);
-if(r == MUX_OK && psFrameSize > 0){
-    ...
-}
+封装音频,psFrameSize为实际ps包的大小<br>
+int r = PsMuxer.MuxAudioFrame(g711buf, g711len, pts, dts, g711Idx, psFrameOutBuf, &psFrameSize, psFrameMax);<br>
+if(r == MUX_OK && psFrameSize > 0){<br>
+    ...<br>
+}<br><br>
+PsMuxer.MuxH264SingleFrame(h263buf, h264len, pts, dts, g711Idx, psFrameOutBuf, &psFrameSize, psFrameMax);<br>
+if(r == MUX_OK && psFrameSize > 0){<br>
+    ...<br>
+}<br>
