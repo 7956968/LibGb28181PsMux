@@ -29,3 +29,7 @@ PsMuxer.MuxH264SingleFrame(h263buf, h264len, pts, dts, g711Idx, psFrameOutBuf, &
 if(r == MUX_OK && psFrameSize > 0){<br>
     ...<br>
 }<br>
+
+3 项目现状
+---
+2021/06/01 因为没有一个人提交更改，我很生气，停更
